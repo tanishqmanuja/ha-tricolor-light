@@ -35,7 +35,7 @@ Other tri-color drivers with the same step-on-fast-toggle behavior should work t
 
 1. Open HACS, then Integrations.
 2. Open the menu and choose **Custom repositories**.
-3. Add your repository URL with category **Integration**.
+3. Add `https://github.com/tanishqmanuja/ha-tricolor-light` with category **Integration**.
 4. Find **TriColor Light** and install it.
 5. Restart Home Assistant.
 
