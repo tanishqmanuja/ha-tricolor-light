@@ -148,7 +148,7 @@ class TriColorLight(LightEntity):
             )
         )
         self._controller.tricolor_entity_id = self.entity_id
-        self.hass.data[DOMAIN]["entity_map"][self.entity_id] = self._controller.entry_id
+        self.hass.data[DOMAIN]["entity_map"][self.entity_id] = self._controller
         self._refresh()
 
     @property
