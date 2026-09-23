@@ -1,11 +1,11 @@
 {
   "domain": "tricolor",
   "name": "TriColor Light",
-  "version": "2026.9.0",
   "codeowners": ["@tanishqmanuja"],
   "config_flow": true,
   "documentation": "https://github.com/tanishqmanuja/ha-tricolor-light",
   "integration_type": "hub",
   "iot_class": "calculated",
-  "issue_tracker": "https://github.com/tanishqmanuja/ha-tricolor-light/issues"
+  "issue_tracker": "https://github.com/tanishqmanuja/ha-tricolor-light/issues",
+  "version": "2026.9.0"
 }

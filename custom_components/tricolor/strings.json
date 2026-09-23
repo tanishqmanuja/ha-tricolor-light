@@ -6,7 +6,7 @@
     "step": {
       "user": {
         "title": "Add TriColor light",
-        "description": "Pick the existing light driving the tri-color driver. A new <name> TriColor light is created on the same device; the original light keeps working.",
+        "description": "Pick the existing light driving the tri-color driver. A new companion TriColor light is created on the same device; the original light keeps working.",
         "data": {
           "source": "Light",
           "guard_seconds": "Guard (seconds)",
