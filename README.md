@@ -46,8 +46,8 @@ Copy `custom_components/tricolor` into your Home Assistant `custom_components` f
 ## Setup
 
 1. Go to **Settings → Devices & services → Add integration → TriColor Light**.
-2. Pick the existing light. A new `<name> TriColor` light is created on the same device; the original light keeps working.
-3. Fine-tune the timing under the entry's **Configure** button if needed (saving reloads automatically):
+2. Pick one or more existing lights. One entry covers them all (one hub on the integrations page), and each light gets its own `<name> TriColor` light on the same device; the original lights keep working.
+3. Fine-tune the timing per light under the entry's **Configure** button (tune, add, or remove lights — saving reloads automatically):
 
 | Option | Default | What it does |
 |---|---|---|
