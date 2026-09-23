@@ -9,5 +9,5 @@
   "integration_type": "hub",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/tanishqmanuja/ha-tricolor-light/issues",
-  "version": "2026.9.1"
+  "version": "2026.9.2"
 }
