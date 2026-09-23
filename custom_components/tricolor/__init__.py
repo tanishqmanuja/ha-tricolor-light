@@ -502,6 +502,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     data["controllers"][entry.entry_id] = entry_controllers
 
+    # Drop registry entries for lights removed from the entry, so no
+    # orphaned TriColor entities linger after an options-remove or migration.
+    valid_unique_ids = {entry.entry_id} | {
+        f"{entry.entry_id}_{source}" for source in entry_controllers
+    }
+    for reg_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if (
+            reg_entry.domain == Platform.LIGHT
+            and reg_entry.platform == DOMAIN
+            and reg_entry.unique_id not in valid_unique_ids
+        ):
+            registry.async_remove(reg_entry.entity_id)
+
     _register_services(hass)
 
     entry.async_on_unload(entry.add_update_listener(_update_listener))
