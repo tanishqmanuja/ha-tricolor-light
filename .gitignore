@@ -1,0 +1,6 @@
+*.pyc
+__pycache__/
+
+# Local dev environment (test HA config with secrets, prototype, task log).
+# Files already tracked here stay tracked; new files under it are ignored.
+.development/

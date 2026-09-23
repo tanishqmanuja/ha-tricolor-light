@@ -1,0 +1,42 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "This light is already wrapped by TriColor Light."
+    },
+    "step": {
+      "user": {
+        "title": "Add TriColor light",
+        "description": "Pick the existing light driving the tri-color driver. A new <name> TriColor light is created on the same device; the original light keeps working.",
+        "data": {
+          "source": "Light",
+          "guard_seconds": "Guard (seconds)",
+          "reset_cycles": "Reset cycles",
+          "cycle_ms": "Cycle step (ms)"
+        },
+        "data_description": {
+          "guard_seconds": "Minimum spacing before an ON following any change, so normal use never steps the color.",
+          "reset_cycles": "Power toggles used by the hardware reset procedure.",
+          "cycle_ms": "ON/OFF step length used by color procedures."
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "TriColor Light options",
+        "description": "Retune the power-step timing. Saving reloads the entry.",
+        "data": {
+          "guard_seconds": "Guard (seconds)",
+          "reset_cycles": "Reset cycles",
+          "cycle_ms": "ON/OFF step length used by color procedures."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "not_tricolor": {
+      "message": "Not a TriColor light entity: {entities}."
+    }
+  }
+}

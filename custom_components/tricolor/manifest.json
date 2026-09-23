@@ -1,0 +1,9 @@
+{
+  "domain": "tricolor",
+  "name": "TriColor Light",
+  "version": "2026.9.0",
+  "codeowners": ["@tanishqmanuja"],
+  "config_flow": true,
+  "integration_type": "hub",
+  "iot_class": "calculated"
+}

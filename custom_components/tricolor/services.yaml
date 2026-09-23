@@ -1,0 +1,59 @@
+set_mode:
+  name: Set mode
+  description: Step the tri-color hardware forward to the requested mode, following the driver cycle order (cool, natural, warm). Does nothing when the remembered mode already matches and the light is on.
+  fields:
+    entity_id:
+      name: TriColor light
+      description: TriColor light entity created by this integration.
+      required: true
+      selector:
+        entity:
+          integration: tricolor
+          domain: light
+          multiple: true
+    mode:
+      name: Mode
+      description: Target hardware color mode.
+      required: true
+      selector:
+        select:
+          options:
+            - cool
+            - natural
+            - warm
+reset_mode:
+  name: Reset mode
+  description: Run the full hardware reset procedure (7 quick power toggles) back to cool daylight. The light is turned on first when needed, as the driver requires.
+  fields:
+    entity_id:
+      name: TriColor light
+      description: TriColor light entity created by this integration.
+      required: true
+      selector:
+        entity:
+          integration: tricolor
+          domain: light
+          multiple: true
+set_internal_state:
+  name: Set internal state
+  description: Correct the remembered mode without touching the hardware. Use this after something outside Home Assistant flipped the light quickly and memory desynced.
+  fields:
+    entity_id:
+      name: TriColor light
+      description: TriColor light entity created by this integration.
+      required: true
+      selector:
+        entity:
+          integration: tricolor
+          domain: light
+          multiple: true
+    mode:
+      name: Mode
+      description: True mode of the physical light.
+      required: true
+      selector:
+        select:
+          options:
+            - cool
+            - natural
+            - warm
