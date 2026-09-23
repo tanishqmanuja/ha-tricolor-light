@@ -1,8 +1,8 @@
 """TriColor Light integration.
 
-Wraps an existing ``light`` entity driving a Philips UltraGlow tunable-white
-(tri-color) driver and exposes it as a ``<name> TriColor`` color-temperature
-``light`` entity on the same device.
+One config entry wraps one or more existing ``light`` entities driving Philips
+UltraGlow tunable-white (tri-color) drivers. Each wrapped light gets a
+``<name> TriColor`` color-temperature ``light`` entity on the same device.
 
 Hardware model (per the driver datasheet): a fast OFF -> ON power step (within
 ~2 s) advances the color ``cool -> natural -> warm -> cool``; leaving the light
@@ -38,10 +38,13 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.helper_integration import async_handle_source_entity_changes
 from homeassistant.helpers.storage import Store
 
+from .config_flow import _key_for
+
 from .const import (
     ATTR_MODE,
     CONF_CYCLE_MS,
     CONF_GUARD,
+    CONF_LIGHTS,
     CONF_RESET_CYCLES,
     CONF_SOURCE,
     CYCLE_ORDER,
@@ -288,7 +291,8 @@ async def _async_save(hass: HomeAssistant) -> None:
         store: Store = data["store"]
         memory = {
             controller.source_entity_id: {"mode": controller.mode}
-            for controller in data["controllers"].values()
+            for entry_controllers in data["controllers"].values()
+            for controller in entry_controllers.values()
         }
         data["memory"] = memory
         await store.async_save({"modes": memory})
@@ -306,12 +310,12 @@ def _resolve_controllers(
     resolved: list[TriColorController] = []
     unknown: list[str] = []
     for entity_id in entity_ids:
-        controller: TriColorController | None = None
-        entry_id = data["entity_map"].get(entity_id)
-        if entry_id is not None:
-            controller = data["controllers"].get(entry_id)
+        controller: TriColorController | None = data["entity_map"].get(entity_id)
         if controller is None and (entry := registry.async_get(entity_id)) is not None:
-            controller = data["controllers"].get(entry.config_entry_id)
+            for candidate in data["controllers"].get(entry.config_entry_id, {}).values():
+                if candidate.tricolor_entity_id == entity_id:
+                    controller = candidate
+                    break
         if controller is None:
             unknown.append(entity_id)
         else:
@@ -368,14 +372,56 @@ def _unregister_services(hass: HomeAssistant) -> None:
     data["services"] = False
 
 
-@callback
-def _source_from_entry(entry: ConfigEntry) -> str:
-    source = entry.options.get(CONF_SOURCE) or entry.data.get(CONF_SOURCE)
-    return str(source)
+def _entry_lights(entry: ConfigEntry) -> dict[str, dict[str, Any]]:
+    """Normalize one entry's lights to {key: {source, guard, cycles, ms}}."""
+    lights: dict[str, dict[str, Any]] = {}
+    for key, item in (entry.data.get(CONF_LIGHTS, {}) or {}).items():
+        item = dict(item)
+        source = str(item.get(CONF_SOURCE, ""))
+        if not source:
+            continue
+        lights[str(key)] = {
+            CONF_SOURCE: source,
+            CONF_GUARD: float(item.get(CONF_GUARD, DEFAULT_GUARD)),
+            CONF_RESET_CYCLES: int(
+                item.get(CONF_RESET_CYCLES, DEFAULT_RESET_CYCLES)
+            ),
+            CONF_CYCLE_MS: int(item.get(CONF_CYCLE_MS, DEFAULT_CYCLE_MS)),
+        }
+    return lights
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate a version 1 single-light entry to the version 2 lights dict."""
+    if entry.version == 1:
+        source = str(entry.options.get(CONF_SOURCE) or entry.data.get(CONF_SOURCE))
+        lights = {
+            _key_for(source, set()): {
+                CONF_SOURCE: source,
+                CONF_GUARD: float(
+                    entry.options.get(CONF_GUARD, entry.data.get(CONF_GUARD, DEFAULT_GUARD))
+                ),
+                CONF_RESET_CYCLES: int(
+                    entry.options.get(
+                        CONF_RESET_CYCLES,
+                        entry.data.get(CONF_RESET_CYCLES, DEFAULT_RESET_CYCLES),
+                    )
+                ),
+                CONF_CYCLE_MS: int(
+                    entry.options.get(
+                        CONF_CYCLE_MS, entry.data.get(CONF_CYCLE_MS, DEFAULT_CYCLE_MS)
+                    )
+                ),
+            }
+        }
+        hass.config_entries.async_update_entry(
+            entry, data={CONF_LIGHTS: lights}, options={}, version=2
+        )
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up one wrapped source entity."""
+    """Set up every wrapped light of one entry."""
     store = _get_store(hass)
     data = hass.data[DOMAIN]
 
@@ -383,61 +429,80 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not data.get("memory"):
         data["memory"] = saved.get("modes", {})
 
-    source = _source_from_entry(entry)
-    try:
-        source = er.async_validate_entity_id(er.async_get(hass), source)
-    except Exception:
-        # Fall back to the raw id when the registry cannot resolve it.
-        source = _source_from_entry(entry)
-
-    memory = data["memory"].get(source, {})
-    options = entry.options
-    controller = TriColorController(
-        hass=hass,
-        entry_id=entry.entry_id,
-        source_entity_id=source,
-        guard=float(options.get(CONF_GUARD, entry.data.get(CONF_GUARD, DEFAULT_GUARD))),
-        reset_cycles=int(
-            options.get(
-                CONF_RESET_CYCLES,
-                entry.data.get(CONF_RESET_CYCLES, DEFAULT_RESET_CYCLES),
-            )
-        ),
-        cycle_ms=int(
-            options.get(CONF_CYCLE_MS, entry.data.get(CONF_CYCLE_MS, DEFAULT_CYCLE_MS))
-        ),
-        mode=_valid_mode(memory.get("mode", DEFAULT_MODE)),
-    )
-    data["controllers"][entry.entry_id] = controller
-    data["memory"].setdefault(source, {"mode": controller.mode})
-
-    _register_services(hass)
-
-    entry.async_on_unload(
-        async_track_state_change_event(hass, [source], controller.handle_source_state_change)
-    )
-
-    def _set_source_entity_id_or_uuid(source_entity_id: str) -> None:
-        hass.config_entries.async_update_entry(
-            entry, options={**entry.options, CONF_SOURCE: source_entity_id}
-        )
-        hass.config_entries.async_schedule_reload(entry.entry_id)
-
-    async def _source_entity_removed() -> None:
-        await hass.config_entries.async_remove(entry.entry_id)
+    lights = _entry_lights(entry)
+    if not lights:
+        _LOGGER.error("TriColor entry %s has no lights configured", entry.entry_id)
+        return False
 
     registry = er.async_get(hass)
-    wrapped = registry.async_get(source)
-    entry.async_on_unload(
-        async_handle_source_entity_changes(
-            hass,
-            helper_config_entry_id=entry.entry_id,
-            set_source_entity_id_or_uuid=_set_source_entity_id_or_uuid,
-            source_device_id=wrapped.device_id if wrapped else None,
-            source_entity_id_or_uuid=_source_from_entry(entry),
-            source_entity_removed=_source_entity_removed,
+    entry_controllers: dict[str, TriColorController] = {}
+    for item in lights.values():
+        raw_source = item[CONF_SOURCE]
+        try:
+            source = er.async_validate_entity_id(registry, raw_source)
+        except Exception:
+            # Fall back to the raw id when the registry cannot resolve it.
+            source = raw_source
+        memory = data["memory"].get(source, {})
+        controller = TriColorController(
+            hass=hass,
+            entry_id=entry.entry_id,
+            source_entity_id=source,
+            guard=item[CONF_GUARD],
+            reset_cycles=item[CONF_RESET_CYCLES],
+            cycle_ms=item[CONF_CYCLE_MS],
+            mode=_valid_mode(memory.get("mode", DEFAULT_MODE)),
         )
-    )
+        entry_controllers[source] = controller
+        data["memory"].setdefault(source, {"mode": controller.mode})
+
+        entry.async_on_unload(
+            async_track_state_change_event(
+                hass, [source], controller.handle_source_state_change
+            )
+        )
+
+        wrapped = registry.async_get(source)
+
+        def _set_source_entity_id_or_uuid(
+            source_entity_id: str, _source: str = source
+        ) -> None:
+            lights = _entry_lights(entry)
+            for key, light in lights.items():
+                if light[CONF_SOURCE] == _source:
+                    lights[key] = {**light, CONF_SOURCE: source_entity_id}
+            hass.config_entries.async_update_entry(
+                entry, data={CONF_LIGHTS: lights}
+            )
+            hass.config_entries.async_schedule_reload(entry.entry_id)
+
+        async def _source_entity_removed(_source: str = source) -> None:
+            remaining = {
+                key: light
+                for key, light in _entry_lights(entry).items()
+                if light[CONF_SOURCE] != _source
+            }
+            if remaining:
+                hass.config_entries.async_update_entry(
+                    entry, data={CONF_LIGHTS: remaining}
+                )
+            else:
+                await hass.config_entries.async_remove(entry.entry_id)
+
+        entry.async_on_unload(
+            async_handle_source_entity_changes(
+                hass,
+                helper_config_entry_id=entry.entry_id,
+                set_source_entity_id_or_uuid=_set_source_entity_id_or_uuid,
+                source_device_id=wrapped.device_id if wrapped else None,
+                source_entity_id_or_uuid=raw_source,
+                source_entity_removed=_source_entity_removed,
+            )
+        )
+
+    data["controllers"][entry.entry_id] = entry_controllers
+
+    _register_services(hass)
 
     entry.async_on_unload(entry.add_update_listener(_update_listener))
 
@@ -450,21 +515,22 @@ async def _update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload one wrapped source entity."""
+    """Unload every wrapped light of one entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if not unloaded:
         return False
     data = hass.data.get(DOMAIN)
     if data is not None:
-        controller: TriColorController | None = data["controllers"].pop(
-            entry.entry_id, None
+        entry_controllers: dict[str, TriColorController] = data["controllers"].pop(
+            entry.entry_id, {}
         )
-        if controller is not None:
+        for controller in entry_controllers.values():
             if controller.tricolor_entity_id is not None:
                 data["entity_map"].pop(controller.tricolor_entity_id, None)
+        if entry_controllers:
             data["dirty"] = True
             await _async_save(hass)
-        if not data["controllers"]:
+        if not any(data["controllers"].values()):
             _unregister_services(hass)
     return True
 

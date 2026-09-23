@@ -9,6 +9,7 @@ STORAGE_KEY: Final = "tricolor.memory"
 STORAGE_VERSION: Final = 1
 
 CONF_SOURCE: Final = "source"
+CONF_LIGHTS: Final = "lights"
 CONF_GUARD: Final = "guard_seconds"
 CONF_RESET_CYCLES: Final = "reset_cycles"
 CONF_CYCLE_MS: Final = "cycle_ms"

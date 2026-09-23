@@ -1,35 +1,61 @@
 {
   "config": {
-    "abort": {
-      "already_configured": "This light is already wrapped by TriColor Light."
+    "error": {
+      "no_lights": "Pick at least one light.",
+      "already_configured": "Already wrapped by TriColor Light: {sources}."
     },
     "step": {
       "user": {
-        "title": "Add TriColor light",
-        "description": "Pick the existing light driving the tri-color driver. A new companion TriColor light is created on the same device; the original light keeps working.",
+        "title": "Add TriColor lights",
+        "description": "Pick the tri-color lights to wrap. One entry can hold lights from one or more devices, and each light gets its own TriColor light on the same device. Tuning lives in the entry options afterwards.",
         "data": {
-          "source": "Light",
-          "guard_seconds": "Guard (seconds)",
-          "reset_cycles": "Reset cycles",
-          "cycle_ms": "Cycle step (ms)"
-        },
-        "data_description": {
-          "guard_seconds": "Minimum spacing before an ON following any change, so normal use never steps the color.",
-          "reset_cycles": "Power toggles used by the hardware reset procedure.",
-          "cycle_ms": "ON/OFF step length used by color procedures."
+          "lights": "Lights"
         }
       }
     }
   },
   "options": {
+    "error": {
+      "cannot_remove_last": "The last light cannot be removed. Delete the entry instead."
+    },
     "step": {
       "init": {
         "title": "TriColor Light options",
-        "description": "Retune the power-step timing. Saving reloads the entry.",
+        "description": "Change tuning, add or remove lights. Saving reloads the entry.",
+        "menu_options": {
+          "tune": "Tune a light",
+          "add": "Add lights",
+          "remove": "Remove lights"
+        }
+      },
+      "tune": {
+        "title": "Tune light",
+        "description": "Pick which light to tune.",
+        "data": {
+          "light": "Light"
+        }
+      },
+      "tune_values": {
+        "title": "Tune light",
+        "description": "Tune {light}.",
         "data": {
           "guard_seconds": "Guard (seconds)",
           "reset_cycles": "Reset cycles",
           "cycle_ms": "Cycle step (ms)"
+        }
+      },
+      "add": {
+        "title": "Add lights",
+        "description": "Add more lights with default tuning.",
+        "data": {
+          "lights": "Lights"
+        }
+      },
+      "remove": {
+        "title": "Remove lights",
+        "description": "Drop lights from this entry.",
+        "data": {
+          "lights": "Lights"
         }
       }
     }

@@ -55,12 +55,16 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Create the TriColor light for one wrapped source entity."""
-    controller = hass.data.get(DOMAIN, {}).get("controllers", {}).get(entry.entry_id)
-    if controller is None:
-        _LOGGER.error("TriColor controller missing for entry %s", entry.entry_id)
+    """Create one TriColor light per wrapped source entity."""
+    entry_controllers = (
+        hass.data.get(DOMAIN, {}).get("controllers", {}).get(entry.entry_id, {})
+    )
+    if not entry_controllers:
+        _LOGGER.error("TriColor controllers missing for entry %s", entry.entry_id)
         return
-    async_add_entities([TriColorLight(hass, entry, controller)])
+    async_add_entities(
+        [TriColorLight(hass, entry, controller) for controller in entry_controllers.values()]
+    )
 
 
 class TriColorLight(LightEntity):
@@ -105,7 +109,15 @@ class TriColorLight(LightEntity):
         # Fixed name and suggested object id: the entity id is always
         # <source_object_id>_tricolor.
         self._attr_name = f"{base_name} TriColor"
-        self._attr_unique_id = entry.entry_id
+        if registry.async_get_entity_id("light", DOMAIN, entry.entry_id) is None:
+            # Fresh entity: scope the unique id to the source so sibling
+            # lights in the same entry never collide. Deterministic, so a
+            # deleted entity restores with the same id.
+            self._attr_unique_id = f"{entry.entry_id}_{controller.source_entity_id}"
+        else:
+            # Migrated single-light entry: keep the original unique id so the
+            # existing entity id is preserved.
+            self._attr_unique_id = entry.entry_id
         self._attr_suggested_object_id = f"{self._source.split('.', 1)[1]}_tricolor"
 
         self._is_on = False
